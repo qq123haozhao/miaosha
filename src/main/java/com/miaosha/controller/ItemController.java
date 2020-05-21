@@ -4,6 +4,7 @@ import com.miaosha.controller.viewobject.ItemVO;
 import com.miaosha.error.BusinessException;
 import com.miaosha.error.EmBusinessError;
 import com.miaosha.response.CommonReturnType;
+import com.miaosha.service.CacheService;
 import com.miaosha.service.ItemService;
 import com.miaosha.service.model.ItemModel;
 import org.joda.time.DateTime;
@@ -34,6 +35,10 @@ public class ItemController extends BaseController{
     @Autowired
     private RedisTemplate redisTemplate;
 
+    //本地缓存操作类，用google的guava cache实现
+    @Autowired
+    private CacheService cacheService;
+
     /**
      * 获取商品详情接口
      * @param id
@@ -43,16 +48,24 @@ public class ItemController extends BaseController{
     @ResponseBody
     public CommonReturnType getItem(@RequestParam(name = "id") Integer id) throws BusinessException {
         ItemVO itemVO = new ItemVO();
+        ItemModel itemModel = null;
 
-        //从redis中获取商品，若没有再从数据库获取
-        ItemModel itemModel = (ItemModel) redisTemplate.opsForValue().get("item_" + id);
+        itemModel = (ItemModel) cacheService.getFromCommonCache("item_" + id);
 
         if (itemModel == null){
-            //从数据库获取商品并存入redis中，过期时间为10分钟
-            itemModel = itemService.getItemById(id);
-            redisTemplate.opsForValue().set("item_"+id, itemModel);
-            redisTemplate.expire("item_"+id, 10, TimeUnit.MINUTES);
+            //本地缓存没有则从redis取，并且加入本地缓存
+            itemModel = (ItemModel) redisTemplate.opsForValue().get("item_" + id);
+            if (itemModel == null){
+                //redis没有再从数据库获取并存入reids
+                itemModel = itemService.getItemById(id);
+                redisTemplate.opsForValue().set("item_"+id, itemModel);
+                redisTemplate.expire("item_"+id, 10, TimeUnit.MINUTES);
+            }
+
+            cacheService.setCommonCache("item_"+id, itemModel);
         }
+
+
         if (itemModel == null){
             throw new BusinessException(EmBusinessError.ITEM_NOT_EXIST);
         }
