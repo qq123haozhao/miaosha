@@ -14,11 +14,13 @@ import com.miaosha.validator.ValidationResult;
 import com.miaosha.validator.ValidatorImpl;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +37,9 @@ public class ItemServiceImpl implements ItemService {
 
     @Autowired
     private ValidatorImpl validator;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     /**
      * 根据商品id获取商品
@@ -58,6 +63,22 @@ public class ItemServiceImpl implements ItemService {
         PromoModel promoModel = promoService.selectPromoByItemId(itemModel.getId());
         if (promoModel!=null && promoModel.getPromoStatus()!=3){
             itemModel.setPromoModel(promoModel);
+        }
+        return itemModel;
+    }
+
+    /**
+     * 从redis中获取商品
+     * @param id
+     * @return
+     */
+    @Override
+    public ItemModel getItemByIdInCache(Integer id) {
+        ItemModel itemModel = (ItemModel) redisTemplate.opsForValue().get("item_validate_"+id);
+        if (itemModel == null){
+            itemModel = this.getItemById(id);
+            redisTemplate.opsForValue().set("item_validate_"+id, itemModel);
+            redisTemplate.expire("item_validate_"+id, 10, TimeUnit.MINUTES);
         }
         return itemModel;
     }
@@ -168,8 +189,9 @@ public class ItemServiceImpl implements ItemService {
     @Override
     @Transactional
     public boolean decreaseStock(Integer itemId, Integer amount) {
-        int affectedRow = itemStockDOMapper.decreaseStock(itemId, amount);
-        if (affectedRow > 0){
+        long result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId, amount.intValue() * -1);
+//        int affectedRow = itemStockDOMapper.decreaseStock(itemId, amount);
+        if (result >= 0){
             //更新成功
             return true;
         }else {

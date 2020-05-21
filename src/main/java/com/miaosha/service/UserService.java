@@ -9,9 +9,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 public interface UserService {
-    public UserModel getUser(int id);
+    UserModel getUser(int id);
 
-    public void register(UserModel userModel) throws BusinessException;
+    UserModel getUserFromCache(int id);
 
-    public UserModel login(String telPhone, String password) throws BusinessException;
+    void register(UserModel userModel) throws BusinessException;
+
+    UserModel login(String telPhone, String password) throws BusinessException;
 }

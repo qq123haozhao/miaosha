@@ -18,6 +18,7 @@ import com.miaosha.service.model.PromoModel;
 import com.miaosha.service.model.UserModel;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.annotation.Id;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,15 +52,31 @@ public class OrderServiceImpl implements OrderService {
         //1、校验订单信息，商品是否存在，用户信息是否正常，订单数量是否正常
 
         //校验商品是否存在
-        ItemModel itemModel = itemService.getItemById(itemId);
+//        ---------弃用，改成从redis中验证--------
+//        ItemModel itemModel = itemService.getItemById(itemId);
+//        if (itemModel == null){
+//            throw new BusinessException(EmBusinessError.ITEM_NOT_EXIST, "商品不存在");
+//        }
+
+        //验证商品是否存在
+        ItemModel itemModel = itemService.getItemByIdInCache(itemId);
         if (itemModel == null){
             throw new BusinessException(EmBusinessError.ITEM_NOT_EXIST, "商品不存在");
         }
+
+//        --------------弃用-------------
         //校验用户信息是否正常
-        UserModel userModel = userService.getUser(userId);
+//        UserModel userModel = userService.getUser(userId);
+//        if (userModel == null){
+//            throw new BusinessException(EmBusinessError.USER_NOT_EXIST, "用户不存在");
+//        }
+
+        //从redis中验证用户信息
+        UserModel userModel = userService.getUserFromCache(userId);
         if (userModel == null){
             throw new BusinessException(EmBusinessError.USER_NOT_EXIST, "用户不存在");
         }
+
         //校验订单数量是否正常
         if (amount<=0 || amount>99){
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR, "数量信息不正确");

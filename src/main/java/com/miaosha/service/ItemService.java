@@ -8,6 +8,8 @@ import java.util.List;
 public interface ItemService {
     ItemModel getItemById(Integer id);
 
+    ItemModel getItemByIdInCache(Integer id);
+
     ItemModel createItem(ItemModel itemModel) throws BusinessException;
 
     List<ItemModel> listItem();

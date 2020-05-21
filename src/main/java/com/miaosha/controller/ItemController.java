@@ -6,16 +6,14 @@ import com.miaosha.error.EmBusinessError;
 import com.miaosha.response.CommonReturnType;
 import com.miaosha.service.CacheService;
 import com.miaosha.service.ItemService;
+import com.miaosha.service.PromoService;
 import com.miaosha.service.model.ItemModel;
-import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +29,9 @@ public class ItemController extends BaseController{
 
     @Autowired
     private ItemService itemService;
+
+    @Autowired
+    private PromoService promoService;
 
     @Autowired
     private RedisTemplate redisTemplate;
@@ -120,6 +121,13 @@ public class ItemController extends BaseController{
         //将返回的商品从model转换为VO并封装成CommonReturnType返回给前端
         ItemVO itemVO = convertItemVOFromItemModel(itemModelForReturn);
         return CommonReturnType.create(itemVO);
+    }
+
+    @RequestMapping(value = "/publishPromo", method = RequestMethod.GET)
+    @ResponseBody
+    public CommonReturnType publishPromo(@RequestParam("promoId") Integer promoId){
+        promoService.publishPromo(promoId);
+        return CommonReturnType.create(null);
     }
 
     /**
