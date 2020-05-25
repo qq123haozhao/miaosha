@@ -2,8 +2,10 @@ package com.miaosha.service.Impl;
 
 import com.miaosha.dao.ItemDOMapper;
 import com.miaosha.dao.ItemStockDOMapper;
+import com.miaosha.dao.StockLogDOMapper;
 import com.miaosha.dataobject.ItemDO;
 import com.miaosha.dataobject.ItemStockDO;
+import com.miaosha.dataobject.StockLogDO;
 import com.miaosha.error.BusinessException;
 import com.miaosha.error.EmBusinessError;
 import com.miaosha.mq.MqConsumer;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -36,6 +39,9 @@ public class ItemServiceImpl implements ItemService {
 
     @Autowired
     private PromoService promoService;
+
+    @Autowired
+    private StockLogDOMapper stockLogDOMapper;
 
     @Autowired
     private ValidatorImpl validator;
@@ -199,18 +205,55 @@ public class ItemServiceImpl implements ItemService {
     public boolean decreaseStock(Integer itemId, Integer amount) {
         long result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId, amount.intValue() * -1);
 //        int affectedRow = itemStockDOMapper.decreaseStock(itemId, amount);
-        if (result >= 0){
-            //更新成功, 异步发送扣减数据库库存消息
-            boolean sendResult = producer.asyncReduceStock(itemId, amount);
-            if (!sendResult){
-                redisTemplate.opsForValue().increment("promo_item_stock_"+itemId, amount.intValue());
-                return false;
-            }
+        if (result > 0){
             return true;
-        }else {
+        }else if (result == 0){
+            //打上售罄标志
+            redisTemplate.opsForValue().set("promo_item_stock_invalid_" + itemId, "true");
+            return true;
+        } else {
             //更新失败
-            redisTemplate.opsForValue().increment("promo_item_stock_"+itemId, amount.intValue());
+//            redisTemplate.opsForValue().increment("promo_item_stock_"+itemId, amount.intValue());
+            increaseStock(itemId, amount);
             return false;
         }
+    }
+
+    /**
+     * 异步扣减库存
+     * @param itemId
+     * @param amount
+     * @return
+     */
+    @Override
+    public boolean asyncDecreaseStock(Integer itemId, Integer amount) {
+        boolean sendResult = producer.asyncReduceStock(itemId, amount);
+        return sendResult;
+    }
+
+    /**
+     * 回滚商品库存
+     * @param itemId
+     * @param amount
+     * @return
+     */
+    @Override
+    @Transactional
+    public boolean increaseStock(Integer itemId, Integer amount) {
+        redisTemplate.opsForValue().increment("promo_item_stock_"+itemId, amount.intValue());
+        return true;
+    }
+
+    //初始化对应的库存流水，在下单前调用，成功返回流水单号
+    @Override
+    @Transactional
+    public String initStockLog(Integer itemId, Integer amount) {
+        StockLogDO stockLogDO = new StockLogDO();
+        stockLogDO.setItemId(itemId);
+        stockLogDO.setAmount(amount);
+        stockLogDO.setStockLogId(UUID.randomUUID().toString().replace("-", ""));
+        stockLogDO.setStatus(1);
+        stockLogDOMapper.insertSelective(stockLogDO);
+        return stockLogDO.getStockLogId();
     }
 }
