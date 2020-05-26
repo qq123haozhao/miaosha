@@ -1,5 +1,6 @@
 package com.miaosha.controller;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.miaosha.error.BusinessException;
 import com.miaosha.error.EmBusinessError;
 import com.miaosha.mq.MqProducer;
@@ -46,6 +47,9 @@ public class OrderController extends BaseController {
     @Autowired
     private PromoService promoService;
 
+    //用google的RateLimiter实现限流
+    private RateLimiter orderCreateRateLimiter;
+
     //使用ExecutorService来创建线程池，实现队列泄洪
     private ExecutorService executorService;
 
@@ -53,6 +57,9 @@ public class OrderController extends BaseController {
     public void init(){
         //设置线程数为20，超出20的部分请求进入等待队列
         executorService = Executors.newFixedThreadPool(20);
+
+        //用令牌桶算法实现限流，每秒300个tps
+        orderCreateRateLimiter = RateLimiter.create(300);
     }
 
     /**
@@ -69,6 +76,11 @@ public class OrderController extends BaseController {
                                         @RequestParam(name = "promoId", required = false) Integer promoId,
                                         @RequestParam(name = "token") String token,
                                         @RequestParam(name = "promoToken", required = false) String promoToken) throws BusinessException {
+
+        if (!orderCreateRateLimiter.tryAcquire()){
+            throw new BusinessException(EmBusinessError.RATELIMIT);
+        }
+
         //判断用户是否登陆
         if (StringUtils.isEmpty(token)){
             throw new BusinessException(EmBusinessError.USER_NOT_LOGIN, "用户未登陆");
