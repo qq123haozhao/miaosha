@@ -6,9 +6,9 @@
 <generatorConfiguration>
     <context id="DB2Tables" targetRuntime="MyBatis3">
         <jdbcConnection driverClass="com.mysql.jdbc.Driver"
-                        connectionURL="jdbc:mysql://127.0.0.1:3306/miaosha"
+                        connectionURL="jdbc:mysql://172.20.13.14:3307/comprehensive_practice?serverTimezone=Asia/Shanghai"
                         userId="root"
-                        password="795138462">
+                        password="123456">
         </jdbcConnection>
 
         <!--生成DataObject类存放位置-->
@@ -70,9 +70,11 @@
                enableUpdateByExample="false" enableDeleteByExample="false"
                enableSelectByExample="false" selectByExampleQueryId="false"></table>-->
 
-<!--         <table tableName="stock_log" domainObjectName="StockLogDO" enableCountByExample="false"-->
-<!--               enableUpdateByExample="false" enableDeleteByExample="false"-->
-<!--               enableSelectByExample="false" selectByExampleQueryId="false"></table>-->
+         <table tableName="elder_classes" domainObjectName="ElderClasses" enableCountByExample="false"
+               enableUpdateByExample="false" enableDeleteByExample="false"
+               enableSelectByExample="false" selectByExampleQueryId="false">
+             <property name="useActualColumnNames" value="true" />
+         </table>
     </context>
 
 </generatorConfiguration>

@@ -58,6 +58,7 @@ public class OrderController extends BaseController {
         //设置线程数为20，超出20的部分请求进入等待队列
         executorService = Executors.newFixedThreadPool(20);
 
+
         //用令牌桶算法实现限流，每秒300个tps
         orderCreateRateLimiter = RateLimiter.create(300);
     }
